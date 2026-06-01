@@ -45,6 +45,14 @@ async def assign_permission_to_user(db: AsyncSession, user_id: int, permission_i
     await db.refresh(db_user_perm)
     return db_user_perm
 
+async def check_user_has_role(db: AsyncSession, user_id: int, role_id: int) -> bool:
+    result = await db.execute(select(UserRole).filter(UserRole.user_id == user_id, UserRole.role_id == role_id))
+    return result.scalars().first() is not None
+
+async def check_user_has_permission(db: AsyncSession, user_id: int, permission_id: int) -> bool:
+    result = await db.execute(select(UserPermission).filter(UserPermission.user_id == user_id, UserPermission.permission_id == permission_id))
+    return result.scalars().first() is not None
+
 async def get_user_profile(db: AsyncSession, user_id: int):
     result = await db.execute(select(UserProfile).filter(UserProfile.user_id == user_id))
     return result.scalars().first()

@@ -28,5 +28,8 @@ async def assign_permission_to_role(db: AsyncSession, role_id: int, assign_data:
     if not permission:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Permission not found")
         
-    # 3. Save the mapping
+    # 3. Prevent duplicate assignment
+    if await crud.check_role_has_permission(db, role_id, assign_data.permission_id):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Role already has this permission")
+        
     return await crud.assign_permission(db, role_id=role_id, permission_id=assign_data.permission_id)

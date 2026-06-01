@@ -31,6 +31,10 @@ async def assign_role(db: AsyncSession, user_id: int, assign_data: schemas.UserR
     if not role:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found")
         
+    # 3. Prevent duplicate assignment
+    if await crud.check_user_has_role(db, user_id, assign_data.role_id):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User already has this role")
+        
     return await crud.assign_role_to_user(db, user_id, assign_data.role_id)
 
 async def assign_permission(db: AsyncSession, user_id: int, assign_data: schemas.UserPermissionAssign):
@@ -43,6 +47,10 @@ async def assign_permission(db: AsyncSession, user_id: int, assign_data: schemas
     permission = await perm_crud.get_permission_by_id(db, assign_data.permission_id)
     if not permission:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Permission not found")
+        
+    # 3. Prevent duplicate assignment
+    if await crud.check_user_has_permission(db, user_id, assign_data.permission_id):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User already has this permission")
         
     return await crud.assign_permission_to_user(db, user_id, assign_data.permission_id)
 
