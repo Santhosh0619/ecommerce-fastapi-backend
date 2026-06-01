@@ -29,6 +29,10 @@ async def assign_permission(db: AsyncSession, role_id: int, permission_id: int):
     await db.refresh(db_role_perm)
     return db_role_perm
 
+async def check_role_has_permission(db: AsyncSession, role_id: int, permission_id: int) -> bool:
+    result = await db.execute(select(RolePermission).filter(RolePermission.role_id == role_id, RolePermission.permission_id == permission_id))
+    return result.scalars().first() is not None
+
 async def get_user_roles_names(db: AsyncSession, user_id: int) -> list[str]:
     from app.features.users.models import UserRole
     stmt = select(Role.role_name).join(UserRole, UserRole.role_id == Role.role_id).filter(UserRole.user_id == user_id)

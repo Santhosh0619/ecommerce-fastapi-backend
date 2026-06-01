@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import String, DateTime, ForeignKey, Text
+from sqlalchemy import String, DateTime, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 from app.database.base import Base
@@ -28,6 +28,8 @@ class UserRole(Base):
     role_id: Mapped[int] = mapped_column(ForeignKey("roles.role_id", ondelete="CASCADE"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+    __table_args__ = (UniqueConstraint('user_id', 'role_id', name='uq_user_role'),)
+
 class UserPermission(Base):
     """Mapping table for explicit User Permissions (bypassing Roles)."""
     __tablename__ = "user_permissions"
@@ -36,6 +38,8 @@ class UserPermission(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
     permission_id: Mapped[int] = mapped_column(ForeignKey("permissions.permission_id", ondelete="CASCADE"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (UniqueConstraint('user_id', 'permission_id', name='uq_user_permission'),)
 
 class UserProfile(Base):
     """1-to-1 Profile table for Users to keep auth table lightweight"""

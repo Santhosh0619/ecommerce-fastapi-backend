@@ -14,6 +14,7 @@ from app.core.security import get_password_hash
 from app.features.roles.models import Role, RolePermission
 from app.features.users.models import User, UserRole, UserProfile
 from app.features.permissions.models import Permission
+from app.features.categories.models import Category
 from app.features.vendors.models import VendorApplication
 from app.core.config import settings
 

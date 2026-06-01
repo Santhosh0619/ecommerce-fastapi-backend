@@ -10,6 +10,7 @@ from app.features.roles.router import router as roles_router
 from app.features.users.router import router as users_router
 from app.features.auth.router import router as auth_router
 from app.features.vendors.router import router as vendors_router
+from app.features.categories.router import router as categories_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -31,6 +32,7 @@ app.include_router(users_router, prefix=settings.API_V1_STR)
 app.include_router(roles_router, prefix=settings.API_V1_STR)
 app.include_router(permissions_router, prefix=settings.API_V1_STR)
 app.include_router(vendors_router, prefix=settings.API_V1_STR)
+app.include_router(categories_router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 def root():
