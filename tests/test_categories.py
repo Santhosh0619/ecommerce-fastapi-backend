@@ -2,62 +2,6 @@ import pytest
 from httpx import AsyncClient
 from app.core.config import settings
 
-@pytest.fixture
-async def admin_token(async_client: AsyncClient):
-    response = await async_client.post(
-        "/api/v1/auth/login",
-        json={"email": settings.FIRST_SUPERUSER_EMAIL, "password": settings.FIRST_SUPERUSER_PASSWORD}
-    )
-    return response.json()["access_token"]
-
-@pytest.fixture
-async def customer_token(async_client: AsyncClient):
-    await async_client.post("/api/v1/auth/register", json={"user_name": "Test Cust", "email": "cust2@test.com", "password": "123"})
-    response = await async_client.post("/api/v1/auth/login", json={"email": "cust2@test.com", "password": "123"})
-    return response.json()["access_token"]
-
-@pytest.fixture
-async def vendor_token(async_client: AsyncClient, admin_token: str):
-    # Create user
-    await async_client.post("/api/v1/auth/register", json={"user_name": "Test Vendor", "email": "vendor2@test.com", "password": "123"})
-    # Assign vendor role via admin endpoint (from previous features)
-    # We will just fetch user ID and apply the Vendor role, but wait, the roles endpoint was /roles or /users/{id}/roles
-    # Let's try registering, then we use admin to assign role.
-    # First, get user by email? We don't have that endpoint. 
-    # Wait, the customer gets automatically assigned the Customer role.
-    # For a Vendor role, in test_vendors.py, they apply to be a vendor, and admin approves them.
-    # To keep it simple, I'll use the vendor_application flow if needed, OR just use the Admin token to directly assign the role if that route exists.
-    # We know `POST /api/v1/users/` allows manual creation by Admin. Let's use that.
-    res = await async_client.post(
-        "/api/v1/users/",
-        headers={"Authorization": f"Bearer {admin_token}"},
-        json={"user_name": "Test Vendor Direct", "email": "vendor3@test.com", "password": "123", "role_id": 2} # Assuming role_id 2 is Vendor
-    )
-    # It might fail if role 2 is not vendor, but let's assume it works or we just login.
-    # Actually, a simpler way is to just create a user, and then manually insert the role into the DB, but we are using API client.
-    # Let's use the Vendor application flow.
-    await async_client.post("/api/v1/auth/register", json={"user_name": "Test Vendor App", "email": "vendorapp2@test.com", "password": "123"})
-    login_res = await async_client.post("/api/v1/auth/login", json={"email": "vendorapp2@test.com", "password": "123"})
-    token = login_res.json()["access_token"]
-    
-    # Submit application
-    app_res = await async_client.post(
-        "/api/v1/vendors/applications",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"store_name": "Test Store", "company_registration_number": "123"}
-    )
-    app_id = app_res.json().get("application_id")
-    
-    # Admin approves
-    await async_client.put(
-        f"/api/v1/vendors/applications/{app_id}/status",
-        headers={"Authorization": f"Bearer {admin_token}"},
-        json={"status": "Approved"}
-    )
-    # Get a fresh token now that they are a vendor
-    fresh_login = await async_client.post("/api/v1/auth/login", json={"email": "vendorapp2@test.com", "password": "123"})
-    return fresh_login.json()["access_token"]
-
 
 @pytest.mark.asyncio
 async def test_create_category_hierarchy(async_client: AsyncClient, admin_token: str):

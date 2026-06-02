@@ -9,6 +9,7 @@ from app.features.users import crud as user_crud
 
 # This tells FastAPI where the client should send the email/password to get a token
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login", auto_error=False)
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
     """
@@ -39,6 +40,26 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
         
     return user
+
+async def get_optional_current_user(token: str = Depends(oauth2_scheme_optional), db: AsyncSession = Depends(get_db)):
+    if not token:
+        return None
+        
+    # Check blocklist
+    is_blocked = await redis_client.get(f"blocklist:{token}")
+    if is_blocked:
+        return None
+        
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id_str: str = payload.get("sub")
+        if user_id_str is None:
+            return None
+        user_id = int(user_id_str)
+    except Exception:
+        return None
+        
+    return await user_crud.get_user_by_id(db, user_id=user_id)
 
 class RequireRole:
     def __init__(self, allowed_roles: list[str]):

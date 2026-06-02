@@ -11,8 +11,10 @@ from app.database.base import Base
 from app.features.users.models import User, UserProfile
 from app.features.roles.models import Role
 from app.features.permissions.models import Permission
+from app.features.users.models import User, UserProfile, UserRole, UserPermission
 from app.features.vendors.models import VendorApplication
 from app.features.categories.models import Category
+from app.features.products.models import Product, ProductImage
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
