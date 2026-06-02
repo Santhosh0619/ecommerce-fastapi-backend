@@ -54,3 +54,7 @@ alembic/__pycache__/
 *.log
 .pytest_cache/
 .mypy_cache/
+
+# Uploads
+uploads/*
+!uploads/**/.gitkeep

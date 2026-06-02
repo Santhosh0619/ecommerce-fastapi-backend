@@ -18,13 +18,12 @@ from app.features.categories.models import Category
 from app.features.vendors.models import VendorApplication
 from app.core.config import settings
 
-# Use an in-memory SQLite database for fast, isolated testing
-SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+# Use a local SQLite database for tests to prevent connection loss issues with in-memory DBs
+SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
 
 engine = create_async_engine(
     SQLALCHEMY_DATABASE_URL,
     connect_args={"check_same_thread": False},
-    poolclass=StaticPool
 )
 
 TestingSessionLocal = sessionmaker(
@@ -38,7 +37,7 @@ async def override_get_db():
 # Override the FastAPI dependency to use our fake database
 app.dependency_overrides[get_db] = override_get_db
 
-@pytest_asyncio.fixture(scope="session", autouse=True)
+@pytest_asyncio.fixture(autouse=True)
 async def setup_test_db():
     """Create all tables and seed default roles/admin before any tests run."""
     async with engine.begin() as conn:
@@ -69,11 +68,7 @@ async def setup_test_db():
             db.add(UserRole(user_id=admin.user_id, role_id=admin_role.role_id))
             await db.commit()
             
-    yield
-    
-    # Auto-cleanup after all tests finish
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+    return
 
 @pytest_asyncio.fixture(autouse=True)
 def mock_redis(monkeypatch):
@@ -101,3 +96,43 @@ async def async_client():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
+
+@pytest_asyncio.fixture
+async def admin_token(async_client: AsyncClient):
+    response = await async_client.post(
+        "/api/v1/auth/login",
+        json={"email": settings.FIRST_SUPERUSER_EMAIL, "password": settings.FIRST_SUPERUSER_PASSWORD}
+    )
+    assert response.status_code == 200, f"Admin login failed: {response.text}"
+    return response.json()["access_token"]
+
+@pytest_asyncio.fixture
+async def customer_token(async_client: AsyncClient):
+    # Ignore 409 if already registered (tests run in same DB sometimes if not careful, but sqlite in-memory drops it. Still good to be safe)
+    await async_client.post("/api/v1/auth/register", json={"user_name": "Test Cust", "email": "cust2@test.com", "password": "123"})
+    response = await async_client.post("/api/v1/auth/login", json={"email": "cust2@test.com", "password": "123"})
+    assert response.status_code == 200, "Customer login failed"
+    return response.json()["access_token"]
+
+@pytest_asyncio.fixture
+async def vendor_token(async_client: AsyncClient, admin_token: str):
+    await async_client.post("/api/v1/auth/register", json={"user_name": "Test Vendor App", "email": "vendorapp2@test.com", "password": "123"})
+    
+    async with TestingSessionLocal() as db:
+        from app.features.users.models import User, UserRole
+        from app.features.roles.models import Role
+        from sqlalchemy.future import select
+        
+        user_res = await db.execute(select(User).filter(User.email == "vendorapp2@test.com"))
+        user = user_res.scalars().first()
+        role_res = await db.execute(select(Role).filter(Role.role_name == "Vendor"))
+        vendor_role = role_res.scalars().first()
+        if user and vendor_role:
+            existing = await db.execute(select(UserRole).filter(UserRole.user_id == user.user_id, UserRole.role_id == vendor_role.role_id))
+            if not existing.scalars().first():
+                db.add(UserRole(user_id=user.user_id, role_id=vendor_role.role_id))
+                await db.commit()
+            
+    fresh_login = await async_client.post("/api/v1/auth/login", json={"email": "vendorapp2@test.com", "password": "123"})
+    assert fresh_login.status_code == 200, "Vendor relogin failed"
+    return fresh_login.json()["access_token"]

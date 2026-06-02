@@ -1,5 +1,9 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+import os
+
 from app.core.config import settings
 from app.database.session import AsyncSessionLocal
 from app.core.seeder import run_seeders
@@ -11,6 +15,7 @@ from app.features.users.router import router as users_router
 from app.features.auth.router import router as auth_router
 from app.features.vendors.router import router as vendors_router
 from app.features.categories.router import router as categories_router
+from app.features.products.router import router as products_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -33,6 +38,12 @@ app.include_router(roles_router, prefix=settings.API_V1_STR)
 app.include_router(permissions_router, prefix=settings.API_V1_STR)
 app.include_router(vendors_router, prefix=settings.API_V1_STR)
 app.include_router(categories_router, prefix=settings.API_V1_STR)
+app.include_router(products_router, prefix=settings.API_V1_STR)
+
+# Ensure upload directory exists
+os.makedirs("uploads/products", exist_ok=True)
+# Mount static files for images
+app.mount("/static/uploads", StaticFiles(directory="uploads"), name="static_uploads")
 
 @app.get("/")
 def root():
