@@ -58,3 +58,7 @@ alembic/__pycache__/
 # Uploads
 uploads/*
 !uploads/**/.gitkeep
+
+
+# Database
+test.db
