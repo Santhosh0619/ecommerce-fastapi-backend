@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     # First Superuser
     FIRST_SUPERUSER_EMAIL: str = "admin@example.com"
     FIRST_SUPERUSER_PASSWORD: str = "admin123"
+    
+    # Checkout
+    CHECKOUT_DELIVERY_FEE: float = 5.00
 
     class Config:
         env_file = ".env"

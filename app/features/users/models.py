@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy import String, DateTime, ForeignKey, Text, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from app.database.base import Base
 
@@ -18,6 +18,9 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     # onupdate=func.now() automatically updates this column whenever the row is modified!
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    cart = relationship("Cart", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    addresses = relationship("Address", back_populates="user", cascade="all, delete-orphan")
 
 class UserRole(Base):
     """Mapping table for Many-to-Many relationship between Users and Roles."""
