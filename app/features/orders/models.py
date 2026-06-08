@@ -26,6 +26,7 @@ class Order(Base):
     user = relationship("app.features.users.models.User", back_populates="orders")
     address = relationship("app.features.addresses.models.Address", back_populates="orders")
     items: Mapped[list["OrderItem"]] = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
+    payments = relationship("app.features.payments.models.Payment", back_populates="order", cascade="all, delete-orphan")
 
 
 class OrderItem(Base):

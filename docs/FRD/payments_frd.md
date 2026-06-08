@@ -3,7 +3,7 @@
 ## 1. System Workflows
 1. **Initialize Payment:** Triggered by the user attempting to pay for a Pending Order. A `payments` row is created (`Pending`), and a gateway intent is generated.
 2. **Webhook Callback (Online Payments):** The Gateway sends an event. The system maps the `transaction_reference` to the local `payment_id`, updates the status to `Success`, and triggers Order confirmation and Notifications.
-3. **Cash On Delivery (COD) Workflow:** COD bypasses the webhook flow. The system instantly creates the `payments` row as `Pending` and the `orders` row status is updated to `Confirmed` immediately to proceed with delivery. Payment status remains `Pending` and automatically transitions to `Success` when the `orders` status is marked as `Delivered`.
+3. **Cash On Delivery (COD) Workflow:** COD bypasses the webhook flow. The system instantly creates the `payments` row as `Pending` and the `orders` row status is updated to `Confirmed` immediately to proceed with delivery. **CRITICAL:** For COD orders, stock is explicitly deducted/reserved when the order is confirmed, while the `payment_status` remains `Pending` until delivery is confirmed (which then transitions payment to `Success`).
 
 ## 2. Database Schema
 ### Table: `payments`

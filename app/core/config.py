@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     
     # Checkout
     CHECKOUT_DELIVERY_FEE: float = 5.00
+    
+    # Payment Gateways
+    DEFAULT_PAYMENT_GATEWAY: str = "mock" # 'stripe' or 'mock'
+    DEFAULT_CURRENCY: str = "usd"
+    STRIPE_API_KEY: str = ""
+    STRIPE_WEBHOOK_SECRET: str = ""
 
     class Config:
         env_file = ".env"
