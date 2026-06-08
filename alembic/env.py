@@ -17,6 +17,8 @@ from app.features.categories.models import Category
 from app.features.products.models import Product, ProductImage
 from app.features.cart.models import Cart, CartItem
 from app.features.addresses.models import Address
+from app.features.orders.models import Order, OrderItem
+from app.features.payments.models import Payment
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

@@ -2,6 +2,7 @@ from sqlalchemy import String, Integer, DateTime, ForeignKey, Date, DECIMAL, Enu
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from decimal import Decimal
+from datetime import date, datetime
 from app.database.base import Base
 
 class Order(Base):
