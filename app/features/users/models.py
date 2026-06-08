@@ -21,6 +21,7 @@ class User(Base):
 
     cart = relationship("Cart", back_populates="user", uselist=False, cascade="all, delete-orphan")
     addresses = relationship("Address", back_populates="user", cascade="all, delete-orphan")
+    orders = relationship("app.features.orders.models.Order", back_populates="user", cascade="all, delete-orphan")
 
 class UserRole(Base):
     """Mapping table for Many-to-Many relationship between Users and Roles."""
