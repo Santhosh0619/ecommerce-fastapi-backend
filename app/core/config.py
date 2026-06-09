@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     # Checkout
     CHECKOUT_DELIVERY_FEE: float = 5.00
     
+    # Email / SMTP
+    SMTP_EMAIL: str = "test@example.com"
+    SMTP_PASSWORD: str = "password"
+    SMTP_HOST: str = "smtp.example.com"
+    SMTP_PORT: int = 587
+    
     # Payment Gateways
     DEFAULT_PAYMENT_GATEWAY: str = "mock" # 'stripe' or 'mock'
     DEFAULT_CURRENCY: str = "usd"

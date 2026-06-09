@@ -8,10 +8,9 @@ from alembic import context
 from app.core.config import settings
 
 from app.database.base import Base
-from app.features.users.models import User, UserProfile
+from app.features.users.models import User, UserProfile, UserRole, UserPermission
 from app.features.roles.models import Role
 from app.features.permissions.models import Permission
-from app.features.users.models import User, UserProfile, UserRole, UserPermission
 from app.features.vendors.models import VendorApplication
 from app.features.categories.models import Category
 from app.features.products.models import Product, ProductImage
@@ -19,7 +18,7 @@ from app.features.cart.models import Cart, CartItem
 from app.features.addresses.models import Address
 from app.features.orders.models import Order, OrderItem
 from app.features.payments.models import Payment
-
+from app.features.notifications.models import Notification
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config

@@ -1,8 +1,9 @@
 import uuid
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
+import typing
 from redis.exceptions import RedisError
 
 from app.core.redis import redis_client
@@ -30,8 +31,9 @@ async def initialize_order(db: AsyncSession, current_user: User, request: OrderC
                     detail="Order is currently being processed. Please wait."
                 )
             else:
-                logger.info(f"Idempotency hit for key {idempotency_key}. Returning order {existing_val}")
-                return await crud.get_order_by_id(db, order_id=int(existing_val), user_id=current_user.user_id)
+                logger.info(f"Idempotency hit for key {idempotency_key}. Returning existing order.")
+                uid = typing.cast(int, current_user.user_id)
+                return await crud.get_order_by_id(db, order_id=int(existing_val), user_id=uid)
     except RedisError as e:
         # If Redis is completely unavailable, we fail the request 
         # to guarantee strict idempotency. We do not want to risk duplicate pending orders.
@@ -54,13 +56,13 @@ async def initialize_order(db: AsyncSession, current_user: User, request: OrderC
     summary_data = await process_checkout_preview(db, current_user, checkout_req)
     
     # 3. Generate Order Number: ORD-YYYYMMDD-UUID
-    date_str = datetime.utcnow().strftime("%Y%m%d")
+    date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
     short_uuid = str(uuid.uuid4()).split('-')[0].upper()
     order_number = f"ORD-{date_str}-{short_uuid}"
     
-    # 4. Create Order (Stock is explicitly NOT reduced here, only at payment success)
+    # 4. Create Order (Stock is explicitly NOT locked here)
     try:
-        new_order = await crud.create_order(db, current_user.user_id, order_number, summary_data)
+        new_order = await crud.create_order(db, typing.cast(int, current_user.user_id), order_number, summary_data)
         await db.commit()
     except Exception as e:
         await db.rollback()
@@ -81,7 +83,9 @@ async def initialize_order(db: AsyncSession, current_user: User, request: OrderC
     return new_order
 
 async def get_user_orders(db: AsyncSession, current_user: User):
-    return await crud.get_user_orders(db, current_user.user_id)
+    uid = typing.cast(int, current_user.user_id)
+    return await crud.get_user_orders(db, uid)
 
 async def get_order(db: AsyncSession, order_id: int, current_user: User):
-    return await crud.get_order_by_id(db, order_id, current_user.user_id)
+    uid = typing.cast(int, current_user.user_id)
+    return await crud.get_order_by_id(db, order_id, uid)

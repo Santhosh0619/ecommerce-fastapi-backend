@@ -6,6 +6,7 @@ from app.features.orders.models import Order
 from app.features.products.models import Product
 from decimal import Decimal
 import logging
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,7 @@ async def create_payment(
     payment_method: str,
     payment_amount: Decimal,
     transaction_reference: str,
-    stripe_payment_intent_id: str = None
+    stripe_payment_intent_id: Optional[str] = None
 ) -> Payment:
     payment = Payment(
         order_id=order_id,

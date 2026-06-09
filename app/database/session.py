@@ -1,5 +1,5 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.pool import NullPool
 from typing import AsyncGenerator
 from app.core.config import settings
 
@@ -9,15 +9,16 @@ from app.core.config import settings
 engine = create_async_engine(
     settings.DATABASE_URL, 
     echo=True, # Set to False in production. True helps debug SQL queries in terminal.
-    future=True
+    future=True,
+    poolclass=NullPool
 )
 
 # 2. Create a Session Factory
 # When we need to talk to the database, we need a "Session".
 # AsyncSessionLocal is a factory that spits out new AsyncSession objects.
 # expire_on_commit=False ensures we can still access our Python objects after the transaction is closed.
-AsyncSessionLocal = sessionmaker(
-    engine, class_=AsyncSession, expire_on_commit=False
+AsyncSessionLocal = async_sessionmaker(
+    engine, expire_on_commit=False
 )
 
 # 3. Dependency Injection Function
