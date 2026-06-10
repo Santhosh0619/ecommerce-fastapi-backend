@@ -104,31 +104,43 @@ async def initiate_payment(db: AsyncSession, current_user: User, request: Paymen
         raise HTTPException(status_code=500, detail=f"Payment Gateway Error: {str(e)}")
 
 async def process_webhook(db: AsyncSession, payload: bytes, signature: str):
+    logger.warning("process_webhook() entered")
+    logger.warning(f"Signature received: {signature}")
     provider = get_provider()
     try:
         event = await provider.verify_webhook(payload, signature)
+        logger.warning(f"Event from provider: {event}")
     except Exception as e:
+        logger.error(f"Error verifying webhook: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
         
     intent_id = event.get("intent_id")
     status_evt = event.get("status")
+    logger.warning(f"Extracted intent_id: {intent_id}")
+    logger.warning(f"Extracted status: {status_evt}")
     
     if not intent_id or status_evt == "ignored":
+        logger.warning("Event ignored because no intent_id was found or status is ignored")
         return {"message": "Event ignored."}
         
     payment = await crud.get_payment_by_intent(db, intent_id)
+    logger.warning(f"Payment found={payment is not None}")
     if not payment:
         logger.error(f"Webhook received for unknown intent {intent_id}")
         return {"message": "Unknown intent."}
         
+    logger.warning(f"Payment status={payment.payment_status}")
     if payment.payment_status == 'Success':
-        logger.info(f"Idempotency hit: Payment {payment.payment_id} already marked success.")
+        logger.warning(f"Idempotency hit: Payment {payment.payment_id} already marked success.")
         return {"message": "Already processed."}
         
     if status_evt == "success":
+        logger.warning("Entering success branch")
         try:
             order = await crud.confirm_order_transaction(db, payment)
+            logger.warning("Before database commit")
             await db.commit()
+            logger.warning("Database commit successful")
             
             # Phase 4 hook: Trigger Background Notifications here
             if order.order_status == 'Confirmed':
@@ -157,32 +169,41 @@ async def process_webhook(db: AsyncSession, payload: bytes, signature: str):
                 
             return {"message": "Payment verified and order confirmed."}
         except Exception as e:
+            logger.error(f"Exception during success processing: {str(e)}")
             await db.rollback()
             logger.error(f"DB Error while processing webhook for payment {payment.payment_id}: {str(e)}")
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal processing error")
     elif status_evt == "failed":
-        await crud.mark_payment_failed(db, payment)
-        await db.commit()
-        
-        # Trigger PAYMENT_FAILED notification
-        from app.features.orders.models import Order
-        from sqlalchemy import select
-        from sqlalchemy.orm import selectinload
-        
-        stmt = select(Order).options(selectinload(Order.user)).where(Order.order_id == payment.order_id)
-        res = await db.execute(stmt)
-        order_details = res.scalar_one_or_none()
-        
-        if order_details and order_details.user:
-            send_email_notification_task.delay(
-                user_id=typing.cast(int, order_details.user.user_id),
-                notification_type="PAYMENT_FAILED",
-                title=f"Payment Failed for Order #{payment.order_id}",
-                message=f"Your payment attempt for Order #{payment.order_id} failed. Please try again.",
-                metadata_json={"order_id": typing.cast(int, payment.order_id), "payment_id": typing.cast(int, payment.payment_id)},
-                email_required=True,
-                recipient_email=str(order_details.user.email),
-                idempotency_key=f"payment_failed_{payment.payment_id}"
-            )
-        
-        return {"message": "Payment failed."}
+        logger.warning("Entering failed branch")
+        try:
+            await crud.mark_payment_failed(db, payment)
+            logger.warning("Before database commit (failed payment)")
+            await db.commit()
+            logger.warning("Database commit successful (failed payment)")
+            
+            # Trigger PAYMENT_FAILED notification
+            from app.features.orders.models import Order
+            from sqlalchemy import select
+            from sqlalchemy.orm import selectinload
+            
+            stmt = select(Order).options(selectinload(Order.user)).where(Order.order_id == payment.order_id)
+            res = await db.execute(stmt)
+            order_details = res.scalar_one_or_none()
+            
+            if order_details and order_details.user:
+                send_email_notification_task.delay(
+                    user_id=typing.cast(int, order_details.user.user_id),
+                    notification_type="PAYMENT_FAILED",
+                    title=f"Payment Failed for Order #{payment.order_id}",
+                    message=f"Your payment attempt for Order #{payment.order_id} failed. Please try again.",
+                    metadata_json={"order_id": typing.cast(int, payment.order_id), "payment_id": typing.cast(int, payment.payment_id)},
+                    email_required=True,
+                    recipient_email=str(order_details.user.email),
+                    idempotency_key=f"payment_failed_{payment.payment_id}"
+                )
+            
+            return {"message": "Payment failed."}
+        except Exception as e:
+            logger.error(f"Exception during failure processing: {str(e)}")
+            await db.rollback()
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal processing error")

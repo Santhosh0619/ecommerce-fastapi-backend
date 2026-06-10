@@ -33,7 +33,7 @@ async def create_payment(
     return payment
 
 async def get_payment_by_intent(db: AsyncSession, intent_id: str) -> Payment:
-    query = select(Payment).where(Payment.stripe_payment_intent_id == intent_id)
+    query = select(Payment).where(Payment.stripe_payment_intent_id == intent_id).with_for_update()
     result = await db.execute(query)
     return result.scalar_one_or_none()
 

@@ -53,7 +53,7 @@ async def initialize_order(db: AsyncSession, current_user: User, request: OrderC
     )
     
     # This securely calculates total, verifies stock (without reducing it), and checks active status
-    summary_data = await process_checkout_preview(db, current_user, checkout_req)
+    summary_data = await process_checkout_preview(db, typing.cast(int, current_user.user_id), checkout_req)
     
     # 3. Generate Order Number: ORD-YYYYMMDD-UUID
     date_str = datetime.now(timezone.utc).strftime("%Y%m%d")

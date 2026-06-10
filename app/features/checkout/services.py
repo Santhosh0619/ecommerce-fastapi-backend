@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date, timezone
 
 from app.features.addresses.crud import get_address
 from app.features.checkout.schemas import CheckoutPreviewRequest, CheckoutSummaryResponse, CheckoutItem, FinancialSummary
@@ -8,7 +8,7 @@ from app.features.cart.crud import get_cart_by_user_id
 from app.features.products.crud import get_product_by_id
 from app.core.config import settings
 
-def calculate_expected_delivery() -> str:
+def calculate_expected_delivery() -> date:
     # Processing time: 1 day, Transit time: 3-5 days
     # Total: 4 to 6 business days. Let's make a simple loop to add business days.
     
@@ -21,14 +21,10 @@ def calculate_expected_delivery() -> str:
                 days_to_add -= 1
         return current_date
 
-    now = datetime.utcnow()
-    min_date = add_business_days(now, 4)
+    now = datetime.now(timezone.utc)
     max_date = add_business_days(now, 6)
     
-    # Format: June 8, 2026 - June 10, 2026 (Handling leading zeros safely for Windows)
-    min_str = min_date.strftime('%B %d, %Y').replace(' 0', ' ')
-    max_str = max_date.strftime('%B %d, %Y').replace(' 0', ' ')
-    return f"{min_str} - {max_str}"
+    return max_date.date()
 
 async def process_checkout_preview(db: AsyncSession, user_id: int, request: CheckoutPreviewRequest) -> CheckoutSummaryResponse:
     # 1. Validate Address
@@ -41,6 +37,9 @@ async def process_checkout_preview(db: AsyncSession, user_id: int, request: Chec
 
     # 2. Process Items based on Checkout Type
     if request.checkout_type == "buy_now":
+        if request.product_id is None or request.quantity is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="product_id and quantity are required for buy_now")
+
         product = await get_product_by_id(db, request.product_id)
         if not product:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")

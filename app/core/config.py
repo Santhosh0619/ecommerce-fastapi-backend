@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     SMTP_PORT: int = 587
     
     # Payment Gateways
-    DEFAULT_PAYMENT_GATEWAY: str = "mock" # 'stripe' or 'mock'
+    DEFAULT_PAYMENT_GATEWAY: str = "stripe" # 'stripe' or 'mock'
     DEFAULT_CURRENCY: str = "usd"
     STRIPE_API_KEY: str = ""
     STRIPE_WEBHOOK_SECRET: str = ""

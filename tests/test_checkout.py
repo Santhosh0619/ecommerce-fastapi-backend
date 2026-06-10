@@ -2,7 +2,7 @@ import pytest
 from httpx import AsyncClient
 
 @pytest.fixture
-async def active_product(async_client: AsyncClient, admin_token: str, vendor_token: str):
+async def active_product(async_client: AsyncClient, admin_token: str, vendor_a_token: str):
     import uuid
     uid = str(uuid.uuid4())[:8]
     res_cat = await async_client.post("/api/v1/categories/", headers={"Authorization": f"Bearer {admin_token}"}, json={"category_name": f"Cat_{uid}"})
@@ -10,19 +10,10 @@ async def active_product(async_client: AsyncClient, admin_token: str, vendor_tok
     
     res_prod = await async_client.post(
         "/api/v1/products/",
-        headers={"Authorization": f"Bearer {vendor_token}"},
+        headers={"Authorization": f"Bearer {vendor_a_token}"},
         json={"product_name": f"Prod_{uid}", "product_description": "Valid Description", "product_price": 100.0, "product_stock": 10, "category_id": cat_id, "product_status": "Active"}
     )
     return res_prod.json()
-
-@pytest.fixture
-async def test_address(async_client: AsyncClient, customer_token: str):
-    res = await async_client.post(
-        "/api/v1/addresses/",
-        headers={"Authorization": f"Bearer {customer_token}"},
-        json={"title": "Home", "full_name": "John", "phone_number": "1234567890", "address_line_1": "123 St", "city": "NY", "state": "NY", "postal_code": "10001", "is_default": True}
-    )
-    return res.json()
 
 @pytest.mark.asyncio
 async def test_checkout_buy_now_success(async_client: AsyncClient, customer_token: str, active_product: dict, test_address: dict):
@@ -139,11 +130,11 @@ async def test_checkout_buy_now_insufficient_stock(async_client: AsyncClient, cu
     assert "insufficient stock" in res.json()["detail"].lower()
 
 @pytest.mark.asyncio
-async def test_checkout_buy_now_inactive_product(async_client: AsyncClient, customer_token: str, active_product: dict, vendor_token: str, test_address: dict):
+async def test_checkout_buy_now_inactive_product(async_client: AsyncClient, customer_token: str, active_product: dict, vendor_a_token: str, test_address: dict):
     # Make product inactive
     await async_client.put(
         f"/api/v1/products/{active_product['product_id']}",
-        headers={"Authorization": f"Bearer {vendor_token}"},
+        headers={"Authorization": f"Bearer {vendor_a_token}"},
         json={"product_status": "Inactive"}
     )
 

@@ -18,7 +18,7 @@ async def create_order(
         address_id=summary_data.delivery_address.address_id,
         order_status='Pending',
         payment_status='Pending',
-        total_amount=summary_data.financial_summary.total_to_pay,
+        total_amount=summary_data.financial_summary.grand_total,
         expected_delivery_date=summary_data.expected_delivery_date
     )
     
@@ -32,7 +32,7 @@ async def create_order(
                 order_id=new_order.order_id,
                 product_id=item.product_id,
                 quantity=item.quantity,
-                product_price=item.price
+                product_price=item.unit_price
             )
         )
         

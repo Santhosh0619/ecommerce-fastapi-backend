@@ -1,9 +1,8 @@
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.pool import NullPool
 from sqlalchemy.future import select
 from unittest.mock import AsyncMock
 
@@ -24,10 +23,11 @@ SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
 engine = create_async_engine(
     SQLALCHEMY_DATABASE_URL,
     connect_args={"check_same_thread": False},
+    poolclass=NullPool,
 )
 
-TestingSessionLocal = sessionmaker(
-    autocommit=False, autoflush=False, bind=engine, class_=AsyncSession, expire_on_commit=False
+TestingSessionLocal = async_sessionmaker(
+    engine, expire_on_commit=False, autoflush=False, autocommit=False
 )
 
 async def override_get_db():
@@ -72,22 +72,43 @@ async def setup_test_db():
 
 @pytest_asyncio.fixture(autouse=True)
 def mock_redis(monkeypatch):
-    """Mock Redis to avoid 'Event loop is closed' errors during async tests."""
-    blocked_tokens = {}
+    """Mock Redis to avoid 'Event loop is closed' errors during async tests and support Idempotency."""
+    redis_store = {}
 
     async def mock_get(key):
-        return blocked_tokens.get(key)
+        return redis_store.get(key)
 
     async def mock_setex(key, time, value):
-        blocked_tokens[key] = value
+        redis_store[key] = value
         return True
+
+    async def mock_setnx(key, value):
+        if key in redis_store:
+            return False
+        redis_store[key] = value
+        return True
+
+    async def mock_set(key, value, ex=None, nx=False, **kwargs):
+        if nx and key in redis_store:
+            return None
+        redis_store[key] = value
+        return True
+
+    async def mock_delete(key):
+        if key in redis_store:
+            del redis_store[key]
+        return 1
 
     mock = AsyncMock()
     mock.get.side_effect = mock_get
     mock.setex.side_effect = mock_setex
+    mock.setnx.side_effect = mock_setnx
+    mock.set.side_effect = mock_set
+    mock.delete.side_effect = mock_delete
     
     monkeypatch.setattr("app.features.auth.dependencies.redis_client", mock)
     monkeypatch.setattr("app.features.auth.services.redis_client", mock)
+    monkeypatch.setattr("app.features.orders.services.redis_client", mock)
     return mock
 
 @pytest_asyncio.fixture
@@ -115,15 +136,15 @@ async def customer_token(async_client: AsyncClient):
     return response.json()["access_token"]
 
 @pytest_asyncio.fixture
-async def vendor_token(async_client: AsyncClient, admin_token: str):
-    await async_client.post("/api/v1/auth/register", json={"user_name": "Test Vendor App", "email": "vendorapp2@test.com", "password": "123"})
+async def vendor_a_token(async_client: AsyncClient, admin_token: str):
+    await async_client.post("/api/v1/auth/register", json={"user_name": "Vendor A", "email": "vendora@test.com", "password": "123"})
     
     async with TestingSessionLocal() as db:
         from app.features.users.models import User, UserRole
         from app.features.roles.models import Role
         from sqlalchemy.future import select
         
-        user_res = await db.execute(select(User).filter(User.email == "vendorapp2@test.com"))
+        user_res = await db.execute(select(User).filter(User.email == "vendora@test.com"))
         user = user_res.scalars().first()
         role_res = await db.execute(select(Role).filter(Role.role_name == "Vendor"))
         vendor_role = role_res.scalars().first()
@@ -133,6 +154,66 @@ async def vendor_token(async_client: AsyncClient, admin_token: str):
                 db.add(UserRole(user_id=user.user_id, role_id=vendor_role.role_id))
                 await db.commit()
             
-    fresh_login = await async_client.post("/api/v1/auth/login", json={"email": "vendorapp2@test.com", "password": "123"})
-    assert fresh_login.status_code == 200, "Vendor relogin failed"
+    fresh_login = await async_client.post("/api/v1/auth/login", json={"email": "vendora@test.com", "password": "123"})
     return fresh_login.json()["access_token"]
+
+@pytest_asyncio.fixture
+async def vendor_b_token(async_client: AsyncClient, admin_token: str):
+    await async_client.post("/api/v1/auth/register", json={"user_name": "Vendor B", "email": "vendorb@test.com", "password": "123"})
+    
+    async with TestingSessionLocal() as db:
+        from app.features.users.models import User, UserRole
+        from app.features.roles.models import Role
+        from sqlalchemy.future import select
+        
+        user_res = await db.execute(select(User).filter(User.email == "vendorb@test.com"))
+        user = user_res.scalars().first()
+        role_res = await db.execute(select(Role).filter(Role.role_name == "Vendor"))
+        vendor_role = role_res.scalars().first()
+        if user and vendor_role:
+            existing = await db.execute(select(UserRole).filter(UserRole.user_id == user.user_id, UserRole.role_id == vendor_role.role_id))
+            if not existing.scalars().first():
+                db.add(UserRole(user_id=user.user_id, role_id=vendor_role.role_id))
+                await db.commit()
+            
+    fresh_login = await async_client.post("/api/v1/auth/login", json={"email": "vendorb@test.com", "password": "123"})
+    return fresh_login.json()["access_token"]
+
+@pytest_asyncio.fixture
+async def test_address(async_client: AsyncClient, customer_token: str):
+    res = await async_client.post(
+        "/api/v1/addresses/",
+        headers={"Authorization": f"Bearer {customer_token}"},
+        json={"title": "Home", "full_name": "John", "phone_number": "1234567890", "address_line_1": "123 St", "city": "NY", "state": "NY", "postal_code": "10001", "is_default": True}
+    )
+    return res.json()
+
+@pytest_asyncio.fixture
+async def active_products_multivendor(async_client: AsyncClient, admin_token: str, vendor_a_token: str, vendor_b_token: str):
+    import uuid
+    uid = str(uuid.uuid4())[:8]
+    res_cat = await async_client.post("/api/v1/categories/", headers={"Authorization": f"Bearer {admin_token}"}, json={"category_name": f"Cat_{uid}"})
+    cat_id = res_cat.json()["category_id"]
+    
+    # Vendor A Product
+    res_prod_a = await async_client.post(
+        "/api/v1/products/",
+        headers={"Authorization": f"Bearer {vendor_a_token}"},
+        json={"product_name": f"ProdA_{uid}", "product_description": "Vendor A Product", "product_price": 100.0, "product_stock": 10, "category_id": cat_id, "product_status": "Active"}
+    )
+    
+    # Vendor B Product
+    res_prod_b = await async_client.post(
+        "/api/v1/products/",
+        headers={"Authorization": f"Bearer {vendor_b_token}"},
+        json={"product_name": f"ProdB_{uid}", "product_description": "Vendor B Product", "product_price": 200.0, "product_stock": 10, "category_id": cat_id, "product_status": "Active"}
+    )
+    
+    return {
+        "vendor_a_product": res_prod_a.json(),
+        "vendor_b_product": res_prod_b.json()
+    }
+
+@pytest_asyncio.fixture
+async def vendor_token(vendor_a_token: str):
+    return vendor_a_token

@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, Request, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -6,6 +7,8 @@ from app.features.users.models import User
 from app.features.auth.dependencies import get_current_user
 from app.features.payments.schemas import PaymentInitiateRequest, PaymentInitiateResponse
 from app.features.payments import services
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -30,7 +33,13 @@ async def payment_webhook(
     """
     Public endpoint for gateway webhooks to notify payment success/failure.
     """
+    logger.warning("===== STRIPE WEBHOOK RECEIVED =====")
+    logger.warning(f"Headers: {dict(request.headers)}")
     payload = await request.body()
+    logger.warning(
+        f"Webhook payload: {payload[:500].decode(errors='ignore')}"
+    )
     # Mock signature fallback if Stripe signature is not provided during local testing
     sig = stripe_signature or "mock_signature"
     return await services.process_webhook(db, payload, sig)
+

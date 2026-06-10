@@ -90,7 +90,7 @@ async def _create_admin_alert_async(failed_task_name: str, error_msg: str):
             if admin.email:
                 try:
                     html_body = generate_email_html("CRITICAL: Admin Alert", f"Task {failed_task_name} permanently failed.<br/>Error: {error_msg}")
-                    await send_email(subject="CRITICAL: Admin Alert", recipients=[admin.email], body=html_body)
+                    await send_email(subject="CRITICAL: Admin Alert", recipients=[admin.email], body=html_body)  # type: ignore
                 except Exception as e:
                     logger.error(f"Failed to send ADMIN_ALERT email to {admin.email}: {e}")
 
@@ -141,19 +141,37 @@ async def _process_order_confirmation_async(order_id: int):
         items_list_str = "\n".join([f"- {item.product.product_name} x {item.quantity} (${item.product_price})" for item in order.items])
         
         addr = order.address
-        shipping_address = f"{addr.street_address}, {addr.city}, {addr.state} {addr.postal_code}, {addr.country}" if addr else "N/A"
-        tx_id = order.payments[0].transaction_reference if order.payments else "N/A"
-        
-        customer_message = f"Your order #{order.order_number} has been confirmed.\n\nShipping Address:\n{shipping_address}\n\nPayment Transaction ID: {tx_id}\n\nItems:\n{items_list_str}\n\nTotal Amount: ${order.total_amount}\nExpected Delivery: {order.expected_delivery_date}"
+        if addr:
+            street = addr.address_line_1
+            if addr.address_line_2:
+                street += f", {addr.address_line_2}"
+            shipping_address = f"{street}, {addr.city}, {addr.state} {addr.postal_code}"
+        else:
+            shipping_address = "N/A"
+        # Identify active payment (Success > Pending)
+        active_payment = None
+        if order.payments:
+            active_payment = next((p for p in order.payments if p.payment_status == 'Success'), None)
+            if not active_payment:
+                active_payment = next((p for p in order.payments if p.payment_status == 'Pending'), None)
+
+        if active_payment and active_payment.payment_method == "COD":
+            payment_info = f"Payment Method: Cash on Delivery\nPayment Status: Pending upon delivery\nTransaction Reference: {active_payment.transaction_reference}"
+        elif active_payment:
+            payment_info = f"Payment Method: Online Payment\nPayment Status: Successful\nTransaction Reference: {active_payment.transaction_reference}"
+        else:
+            payment_info = "Payment Info: N/A"
+
+        customer_message = f"Your order #{order.order_number} has been confirmed.\n\nShipping Address:\n{shipping_address}\n\n{payment_info}\n\nItems:\n{items_list_str}\n\nTotal Amount: ${order.total_amount}\nExpected Delivery: {order.expected_delivery_date}"
         
         await _process_notification_async(
-            user_id=order.user_id,
+            user_id=order.user_id,  # type: ignore
             notification_type="ORDER_CONFIRMED",
             title=f"Order Confirmed: {order.order_number}",
             message=customer_message,
             metadata_json={"order_id": order.order_id, "order_number": order.order_number},
             email_required=True,
-            recipient_email=order.user.email,
+            recipient_email=order.user.email,  # type: ignore
             idempotency_key=f"order_confirmed_customer_{order.order_id}"
         )
 
@@ -178,13 +196,13 @@ async def _process_order_confirmation_async(order_id: int):
             v_message = f"You have a new order (Part of Order #{order.order_number})!\n\nCustomer Shipping Address:\n{shipping_address}\n\nProducts:\n{v_items_str}\n\nPlease prepare these items for shipment."
             
             await _process_notification_async(
-                user_id=vendor.user_id,
+                user_id=vendor.user_id,  # type: ignore
                 notification_type="NEW_VENDOR_ORDER",
                 title=f"New Order Received: #{order.order_number}",
                 message=v_message,
                 metadata_json={"order_id": order.order_id, "order_number": order.order_number},
                 email_required=True,
-                recipient_email=vendor.email,
+                recipient_email=vendor.email,  # type: ignore
                 idempotency_key=f"new_vendor_order_{order.order_id}_{vendor_id}"
             )
 
