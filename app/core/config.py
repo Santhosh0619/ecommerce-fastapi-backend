@@ -4,6 +4,9 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "E-Commerce API"
     API_V1_STR: str = "/api/v1"
     
+    # Environment
+    ENVIRONMENT: str = "development"
+    
     # Database
     DATABASE_URL: str
     

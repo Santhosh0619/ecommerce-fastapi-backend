@@ -37,20 +37,33 @@ async def get_payment_by_intent(db: AsyncSession, intent_id: str) -> Payment:
     result = await db.execute(query)
     return result.scalar_one_or_none()
 
-async def get_pending_payment_for_order(db: AsyncSession, order_id: int) -> Payment:
+from sqlalchemy import update
+
+async def get_pending_payment_for_order(db: AsyncSession, order_id: int) -> Optional[Payment]:
     query = select(Payment).where(Payment.order_id == order_id, Payment.payment_status == 'Pending')
     result = await db.execute(query)
-    return result.scalar_one_or_none()
+    return result.scalars().first()
+
+async def cancel_all_pending_payments_for_order(db: AsyncSession, order_id: int):
+    stmt = update(Payment).where(
+        Payment.order_id == order_id, 
+        Payment.payment_status == 'Pending'
+    ).values(payment_status='Cancelled')
+    await db.execute(stmt)
 
 async def confirm_order_transaction(db: AsyncSession, payment: Payment, mark_payment_success: bool = True):
     # This is a critical transaction
     if mark_payment_success:
         payment.payment_status = 'Success'
     
-    query = select(Order).options(selectinload(Order.items)).where(Order.order_id == payment.order_id)
+    query = select(Order).options(selectinload(Order.items)).where(Order.order_id == payment.order_id).with_for_update()
     result = await db.execute(query)
     order = result.scalar_one()
     
+    if order.payment_status in ['Success', 'Cancelled']:
+        logger.warning(f"Order {order.order_id} already finalized with status {order.payment_status}. Skipping update.")
+        return order
+        
     # Synchronize order.payment_status
     order.payment_status = payment.payment_status
     
@@ -85,8 +98,13 @@ async def confirm_order_transaction(db: AsyncSession, payment: Payment, mark_pay
 
 async def mark_payment_failed(db: AsyncSession, payment: Payment):
     payment.payment_status = 'Failed'
-    query = select(Order).where(Order.order_id == payment.order_id)
+    query = select(Order).where(Order.order_id == payment.order_id).with_for_update()
     result = await db.execute(query)
     order = result.scalar_one()
+    
+    if order.payment_status in ['Success', 'Cancelled']:
+        logger.warning(f"Order {order.order_id} already finalized with status {order.payment_status}. Ignoring late failure webhook.")
+        return
+        
     order.payment_status = 'Failed'
     await db.flush()

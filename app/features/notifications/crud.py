@@ -15,9 +15,11 @@ async def get_user_notifications(db: AsyncSession, user_id: int, skip: int = 0, 
     result = await db.execute(stmt)
     return result.scalars().all()
 
-async def get_notification_by_id(db: AsyncSession, notification_id: int) -> Optional[Notification]:
+async def get_notification_by_id(db: AsyncSession, notification_id: int, user_id: Optional[int] = None) -> Optional[Notification]:
     """Fetch a specific notification by its ID."""
     stmt = select(Notification).where(Notification.notification_id == notification_id)
+    if user_id is not None:
+        stmt = stmt.where(Notification.user_id == user_id)
     result = await db.execute(stmt)
     return result.scalars().first()
 
@@ -32,5 +34,5 @@ async def mark_notification_as_read(db: AsyncSession, notification_id: int, user
     await db.execute(stmt)
     await db.commit()
     
-    # Return updated notification
-    return await get_notification_by_id(db, notification_id)
+    # Return updated notification, ensuring we only return it if it belongs to the user
+    return await get_notification_by_id(db, notification_id, user_id)

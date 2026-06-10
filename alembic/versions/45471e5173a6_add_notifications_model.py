@@ -32,7 +32,7 @@ def upgrade() -> None:
     sa.Column('delivery_status', sa.Enum('PENDING', 'SENT', 'FAILED', name='deliverystatus'), nullable=False),
     sa.Column('idempotency_key', sa.String(length=255), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), onupdate=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['users.user_id'], ),
     sa.PrimaryKeyConstraint('notification_id')
     )

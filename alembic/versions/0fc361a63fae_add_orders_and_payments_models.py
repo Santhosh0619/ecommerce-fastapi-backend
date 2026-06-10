@@ -31,7 +31,7 @@ def upgrade() -> None:
     sa.Column('total_amount', sa.DECIMAL(precision=10, scale=2), nullable=False),
     sa.Column('expected_delivery_date', sa.Date(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), onupdate=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['address_id'], ['user_addresses.address_id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['users.user_id'], ),
     sa.PrimaryKeyConstraint('order_id')
@@ -64,7 +64,7 @@ def upgrade() -> None:
     sa.Column('stripe_payment_intent_id', sa.String(length=255), nullable=True),
     sa.Column('transaction_reference', sa.String(length=255), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), onupdate=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['order_id'], ['orders.order_id'], ),
     sa.PrimaryKeyConstraint('payment_id')
     )

@@ -24,21 +24,25 @@ async def initiate_payment(db: AsyncSession, current_user: User, request: Paymen
         
     # 2. Idempotency Check: Existing Pending Payment
     existing_payment = await crud.get_pending_payment_for_order(db, request.order_id)
-    if existing_payment and existing_payment.payment_method == request.payment_method:
-        logger.info(f"Idempotency hit for order {request.order_id}. Returning existing payment intent.")
-        # Reconstruct response from DB
-        client_secret = None
-        if existing_payment.gateway_response:
-            data = json.loads(str(existing_payment.gateway_response))
-            client_secret = data.get("client_secret")
-            
-        return PaymentInitiateResponse(
-            payment_id=typing.cast(int, existing_payment.payment_id),
-            order_id=typing.cast(int, order.order_id),
-            gateway_provider=typing.cast(str, existing_payment.gateway_provider),
-            client_secret=client_secret,
-            message="Resumed existing payment session."
-        )
+    if existing_payment:
+        if existing_payment.payment_method == request.payment_method:
+            logger.info(f"Idempotency hit for order {request.order_id}. Returning existing payment intent.")
+            # Reconstruct response from DB
+            client_secret = None
+            if existing_payment.gateway_response:
+                data = json.loads(str(existing_payment.gateway_response))
+                client_secret = data.get("client_secret")
+                
+            return PaymentInitiateResponse(
+                payment_id=typing.cast(int, existing_payment.payment_id),
+                order_id=typing.cast(int, order.order_id),
+                gateway_provider=typing.cast(str, existing_payment.gateway_provider),
+                client_secret=client_secret,
+                message="Resumed existing payment session."
+            )
+        else:
+            logger.info(f"Cancelling previous {existing_payment.payment_method} payment {existing_payment.payment_id} for order {request.order_id} in favor of new {request.payment_method} attempt.")
+            await crud.cancel_all_pending_payments_for_order(db, request.order_id)
 
     # 3. Handle COD vs Online Payment
     if request.payment_method == 'COD':

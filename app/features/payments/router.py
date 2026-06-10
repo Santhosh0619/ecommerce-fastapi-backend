@@ -39,7 +39,15 @@ async def payment_webhook(
     logger.warning(
         f"Webhook payload: {payload[:500].decode(errors='ignore')}"
     )
-    # Mock signature fallback if Stripe signature is not provided during local testing
-    sig = stripe_signature or "mock_signature"
+    from app.core.config import settings
+    from fastapi import HTTPException
+    
+    if stripe_signature:
+        sig = stripe_signature
+    elif settings.DEFAULT_PAYMENT_GATEWAY == "mock" and settings.ENVIRONMENT in ["development", "testing"]:
+        sig = "mock_signature"
+    else:
+        raise HTTPException(status_code=400, detail="Missing Stripe-Signature header")
+        
     return await services.process_webhook(db, payload, sig)
 
