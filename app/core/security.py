@@ -2,6 +2,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Union
 import jwt
 from passlib.context import CryptContext
+from typing import Union, Any, Optional
+
 from app.core.config import settings
 
 # Password hashing context setup using bcrypt
@@ -15,7 +17,7 @@ def get_password_hash(password: str) -> str:
     """Hashes a plain text password using bcrypt."""
     return pwd_context.hash(password)
 
-def create_access_token(subject: Union[str, Any], expires_delta: timedelta = None) -> str:
+def create_access_token(subject: Union[str, Any], expires_delta: Optional[timedelta] = None) -> str:
     """Generates a short-lived JWT access token."""
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
@@ -27,7 +29,7 @@ def create_access_token(subject: Union[str, Any], expires_delta: timedelta = Non
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
-def create_refresh_token(subject: Union[str, Any], expires_delta: timedelta = None) -> str:
+def create_refresh_token(subject: Union[str, Any], expires_delta: Optional[timedelta] = None) -> str:
     """Generates a long-lived JWT refresh token."""
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta

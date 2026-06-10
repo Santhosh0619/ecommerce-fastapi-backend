@@ -24,3 +24,4 @@ class Address(Base):
 
     # Relationships
     user = relationship("User", back_populates="addresses")
+    orders = relationship("app.features.orders.models.Order", back_populates="address")

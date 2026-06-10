@@ -1,6 +1,6 @@
 from pydantic import BaseModel, model_validator
 from typing import Optional, Literal
-from datetime import datetime
+from datetime import datetime, date
 
 class CheckoutPreviewRequest(BaseModel):
     checkout_type: Literal["buy_now", "cart"]
@@ -39,4 +39,4 @@ class CheckoutSummaryResponse(BaseModel):
     delivery_address: AddressResponse
     items: list[CheckoutItem]
     financial_summary: FinancialSummary
-    expected_delivery_date: str
+    expected_delivery_date: date

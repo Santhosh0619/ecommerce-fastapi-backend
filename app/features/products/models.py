@@ -31,6 +31,7 @@ class Product(Base):
     images: Mapped[list["ProductImage"]] = relationship("ProductImage", back_populates="product", cascade="all, delete-orphan")
     category = relationship("app.features.categories.models.Category")
     vendor = relationship("app.features.users.models.User")
+    order_items = relationship("app.features.orders.models.OrderItem", back_populates="product")
 
 class ProductImage(Base):
     __tablename__ = "product_images"

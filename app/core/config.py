@@ -4,6 +4,9 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "E-Commerce API"
     API_V1_STR: str = "/api/v1"
     
+    # Environment
+    ENVIRONMENT: str = "development"
+    
     # Database
     DATABASE_URL: str
     
@@ -22,6 +25,18 @@ class Settings(BaseSettings):
     
     # Checkout
     CHECKOUT_DELIVERY_FEE: float = 5.00
+    
+    # Email / SMTP
+    SMTP_EMAIL: str = "test@example.com"
+    SMTP_PASSWORD: str = "password"
+    SMTP_HOST: str = "smtp.example.com"
+    SMTP_PORT: int = 587
+    
+    # Payment Gateways
+    DEFAULT_PAYMENT_GATEWAY: str = "stripe" # 'stripe' or 'mock'
+    DEFAULT_CURRENCY: str = "usd"
+    STRIPE_API_KEY: str = ""
+    STRIPE_WEBHOOK_SECRET: str = ""
 
     class Config:
         env_file = ".env"

@@ -19,8 +19,9 @@ class User(Base):
     # onupdate=func.now() automatically updates this column whenever the row is modified!
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    cart = relationship("Cart", back_populates="user", uselist=False, cascade="all, delete-orphan")
-    addresses = relationship("Address", back_populates="user", cascade="all, delete-orphan")
+    cart = relationship("app.features.cart.models.Cart", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    addresses = relationship("app.features.addresses.models.Address", back_populates="user", cascade="all, delete-orphan")
+    orders = relationship("app.features.orders.models.Order", back_populates="user", cascade="all, delete-orphan")
 
 class UserRole(Base):
     """Mapping table for Many-to-Many relationship between Users and Roles."""
