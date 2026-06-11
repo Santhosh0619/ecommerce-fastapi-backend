@@ -19,6 +19,7 @@ from app.features.addresses.models import Address
 from app.features.orders.models import Order, OrderItem
 from app.features.payments.models import Payment
 from app.features.notifications.models import Notification
+from app.features.reviews.models import Review, ReviewHelpfulVote
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
