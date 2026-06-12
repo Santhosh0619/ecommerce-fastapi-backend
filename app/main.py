@@ -22,6 +22,7 @@ from app.features.checkout.router import router as checkout_router
 from app.features.orders.router import router as orders_router
 from app.features.payments.router import router as payments_router
 from app.features.notifications.router import router as notifications_router
+from app.features.reviews.router import router as reviews_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -51,6 +52,7 @@ app.include_router(checkout_router, prefix=settings.API_V1_STR)
 app.include_router(orders_router, prefix=f"{settings.API_V1_STR}/orders", tags=["orders"])
 app.include_router(payments_router, prefix=f"{settings.API_V1_STR}/payments", tags=["payments"])
 app.include_router(notifications_router, prefix=settings.API_V1_STR)
+app.include_router(reviews_router, prefix=settings.API_V1_STR)
 
 # Ensure upload directory exists
 os.makedirs("uploads/products", exist_ok=True)

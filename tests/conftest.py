@@ -111,6 +111,41 @@ def mock_redis(monkeypatch):
     monkeypatch.setattr("app.features.orders.services.redis_client", mock)
     return mock
 
+@pytest_asyncio.fixture(autouse=True)
+def mock_celery(monkeypatch):
+    """Mock Celery task .delay methods to avoid requiring a real Redis message broker in tests."""
+    mock = AsyncMock()
+    monkeypatch.setattr("app.features.notifications.tasks.process_order_confirmation_task.delay", mock)
+    monkeypatch.setattr("app.features.notifications.tasks.send_email_notification_task.delay", mock)
+    return mock
+
+@pytest_asyncio.fixture(autouse=True)
+def mock_stripe(monkeypatch):
+    """Mock Stripe API calls to prevent live HTTP requests during tests."""
+    def mock_create(*args, **kwargs):
+        import uuid
+        class MockIntent:
+            id = f"pi_mock_{uuid.uuid4().hex}"
+            client_secret = f"{id}_secret_mock"
+        return MockIntent()
+        
+    def mock_construct_event(payload, *args, **kwargs):
+        import json
+        from types import SimpleNamespace
+        payload_data = json.loads(payload)
+        
+        intent = SimpleNamespace(id=payload_data.get("intent_id", "pi_mock_intent_123"))
+        event_data = SimpleNamespace(object=intent)
+        
+        evt_type = "payment_intent.succeeded" if payload_data.get("status") in ("success", "succeeded") else "payment_intent.payment_failed"
+        event = SimpleNamespace(type=evt_type, data=event_data)
+        
+        return event
+
+    monkeypatch.setattr("stripe.PaymentIntent.create", mock_create)
+    monkeypatch.setattr("stripe.Webhook.construct_event", mock_construct_event)
+    return True
+
 @pytest_asyncio.fixture
 async def async_client():
     """Fixture to provide an async HTTP client for API requests."""
