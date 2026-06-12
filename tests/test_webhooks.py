@@ -28,7 +28,7 @@ async def test_payment_webhook_success_and_failure(async_client: AsyncClient, cu
         "intent_id": tx_id,
         "status": "failed"
     }
-    await async_client.post("/api/v1/payments/webhook", json=fail_payload)
+    await async_client.post("/api/v1/payments/webhook", headers={"Stripe-Signature": "test_sig"}, json=fail_payload)
     
     # Verify order is Cancelled
     order_fail_check = await async_client.get(f"/api/v1/orders/{order_id}", headers={"Authorization": f"Bearer {customer_token}"})
@@ -57,7 +57,7 @@ async def test_payment_webhook_success_and_failure(async_client: AsyncClient, cu
         "intent_id": tx_id_2,
         "status": "success"
     }
-    await async_client.post("/api/v1/payments/webhook", json=succ_payload)
+    await async_client.post("/api/v1/payments/webhook", headers={"Stripe-Signature": "test_sig"}, json=succ_payload)
     
     # Verify order is Confirmed
     order_succ_check = await async_client.get(f"/api/v1/orders/{order_id_2}", headers={"Authorization": f"Bearer {customer_token}"})
