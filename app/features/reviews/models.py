@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import String, Integer, DateTime, ForeignKey, Text, Boolean, DECIMAL, Enum as SQLEnum, UniqueConstraint
+from sqlalchemy import String, Integer, DateTime, ForeignKey, Text, Boolean, DECIMAL, Enum as SQLEnum, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from app.database.base import Base
@@ -21,8 +21,8 @@ class Review(Base):
     
     rating: Mapped[float] = mapped_column(DECIMAL(2, 1), nullable=False)  # 0.5 to 5.0
     review_comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    is_edited: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    helpful_votes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    is_edited: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text('false'), nullable=False)
+    helpful_votes: Mapped[int] = mapped_column(Integer, default=0, server_default=text('0'), nullable=False)
     
     vendor_reply: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     vendor_reply_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -30,6 +30,7 @@ class Review(Base):
     review_status: Mapped[ReviewStatus] = mapped_column(
         SQLEnum(ReviewStatus, name="review_status_enum"),
         default=ReviewStatus.Published,
+        server_default=text("'Published'"),
         nullable=False,
         index=True
     )

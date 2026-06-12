@@ -197,6 +197,12 @@ async def test_helpful_votes(async_client: AsyncClient, customer_token: str, adm
     )
     assert res_vote_remove.status_code == 200
     assert res_vote_remove.json()["voted"] is False
+    
+    # Check helpful_votes count decreased
+    res_get_after = await async_client.get(f"/api/v1/products/{product_id}/reviews")
+    reviews_after = res_get_after.json()
+    review_after = next(r for r in reviews_after if r["review_id"] == review_id)
+    assert review_after["helpful_votes"] == 0
 
 @pytest.mark.asyncio
 async def test_vendor_reply(async_client: AsyncClient, customer_token: str, vendor_a_token: str, vendor_b_token: str, active_products_multivendor: dict, test_address: dict):

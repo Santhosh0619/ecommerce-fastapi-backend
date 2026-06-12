@@ -28,11 +28,11 @@ def upgrade() -> None:
     sa.Column('order_id', sa.Integer(), nullable=False),
     sa.Column('rating', sa.DECIMAL(precision=2, scale=1), nullable=False),
     sa.Column('review_comment', sa.Text(), nullable=True),
-    sa.Column('is_edited', sa.Boolean(), nullable=False),
-    sa.Column('helpful_votes', sa.Integer(), nullable=False),
+    sa.Column('is_edited', sa.Boolean(), server_default=sa.text('false'), nullable=False),
+    sa.Column('helpful_votes', sa.Integer(), server_default=sa.text('0'), nullable=False),
     sa.Column('vendor_reply', sa.Text(), nullable=True),
     sa.Column('vendor_reply_at', sa.DateTime(timezone=True), nullable=True),
-    sa.Column('review_status', sa.Enum('Published', 'Hidden', 'Deleted', name='review_status_enum'), nullable=False),
+    sa.Column('review_status', sa.Enum('Published', 'Hidden', 'Deleted', name='review_status_enum'), server_default=sa.text("'Published'"), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['order_id'], ['orders.order_id'], ),
@@ -42,7 +42,6 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_reviews_order_id'), 'reviews', ['order_id'], unique=False)
     op.create_index(op.f('ix_reviews_product_id'), 'reviews', ['product_id'], unique=False)
-    op.create_index(op.f('ix_reviews_review_id'), 'reviews', ['review_id'], unique=False)
     op.create_index(op.f('ix_reviews_review_status'), 'reviews', ['review_status'], unique=False)
     op.create_index(op.f('ix_reviews_user_id'), 'reviews', ['user_id'], unique=False)
     op.create_table('review_helpful_votes',
@@ -62,7 +61,6 @@ def downgrade() -> None:
     op.drop_table('review_helpful_votes')
     op.drop_index(op.f('ix_reviews_user_id'), table_name='reviews')
     op.drop_index(op.f('ix_reviews_review_status'), table_name='reviews')
-    op.drop_index(op.f('ix_reviews_review_id'), table_name='reviews')
     op.drop_index(op.f('ix_reviews_product_id'), table_name='reviews')
     op.drop_index(op.f('ix_reviews_order_id'), table_name='reviews')
     op.drop_table('reviews')
