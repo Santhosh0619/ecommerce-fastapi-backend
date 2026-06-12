@@ -131,20 +131,14 @@ def mock_stripe(monkeypatch):
         
     def mock_construct_event(payload, *args, **kwargs):
         import json
+        from types import SimpleNamespace
         payload_data = json.loads(payload)
         
-        class DynMockIntent: pass
-        intent = DynMockIntent()
-        intent.id = payload_data.get("intent_id", "pi_mock_intent_123")
+        intent = SimpleNamespace(id=payload_data.get("intent_id", "pi_mock_intent_123"))
+        event_data = SimpleNamespace(object=intent)
         
-        class DynMockEventData: pass
-        event_data = DynMockEventData()
-        event_data.object = intent
-        
-        class DynMockEvent: pass
-        event = DynMockEvent()
-        event.type = "payment_intent.succeeded" if payload_data.get("status") in ("success", "succeeded") else "payment_intent.payment_failed"
-        event.data = event_data
+        evt_type = "payment_intent.succeeded" if payload_data.get("status") in ("success", "succeeded") else "payment_intent.payment_failed"
+        event = SimpleNamespace(type=evt_type, data=event_data)
         
         return event
 
