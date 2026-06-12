@@ -13,11 +13,14 @@ async def get_cart_by_user_id(db: AsyncSession, user_id: int):
     )
     return result.scalars().first()
 
-async def create_cart(db: AsyncSession, user_id: int):
+async def create_cart(db: AsyncSession, user_id: int, commit: bool = True):
     db_cart = Cart(user_id=user_id)
     db.add(db_cart)
-    await db.commit()
-    await db.refresh(db_cart)
+    if commit:
+        await db.commit()
+        await db.refresh(db_cart)
+    else:
+        await db.flush()
     return db_cart
 
 async def get_cart_item(db: AsyncSession, cart_id: int, product_id: int):
@@ -34,17 +37,23 @@ async def get_cart_item_by_id(db: AsyncSession, cart_item_id: int):
     )
     return result.scalars().first()
 
-async def add_cart_item(db: AsyncSession, cart_id: int, product_id: int, quantity: int, is_selected: bool = True):
+async def add_cart_item(db: AsyncSession, cart_id: int, product_id: int, quantity: int, is_selected: bool = True, commit: bool = True):
     db_item = CartItem(cart_id=cart_id, product_id=product_id, quantity=quantity, is_selected=is_selected)
     db.add(db_item)
-    await db.commit()
-    await db.refresh(db_item)
+    if commit:
+        await db.commit()
+        await db.refresh(db_item)
+    else:
+        await db.flush()
     return db_item
 
-async def update_cart_item(db: AsyncSession, db_item: CartItem):
+async def update_cart_item(db: AsyncSession, db_item: CartItem, commit: bool = True):
     # Changes to db_item (like quantity or is_selected) are already mapped, just commit
-    await db.commit()
-    await db.refresh(db_item)
+    if commit:
+        await db.commit()
+        await db.refresh(db_item)
+    else:
+        await db.flush()
     return db_item
 
 async def delete_cart_item(db: AsyncSession, db_item: CartItem):
