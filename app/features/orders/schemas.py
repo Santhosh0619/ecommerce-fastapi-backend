@@ -42,3 +42,21 @@ class OrderResponse(BaseModel):
     items: List[OrderItemResponse]
 
     model_config = ConfigDict(from_attributes=True)
+
+class AddedItem(BaseModel):
+    product_id: int
+    product_name: str
+    quantity_added: int
+    current_price: Decimal
+    price_changed: bool
+
+class UnavailableItem(BaseModel):
+    product_id: int
+    product_name: str
+    reason: str
+
+class BuyAgainResponse(BaseModel):
+    message: str
+    added_items: List[AddedItem]
+    unavailable_items: List[UnavailableItem]
+    cart_total_items: int

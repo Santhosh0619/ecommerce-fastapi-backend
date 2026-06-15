@@ -3,11 +3,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.cart import crud, schemas
 from app.features.products.crud import get_product_by_id
 from app.features.roles.crud import get_user_roles_names
+import typing
 
-async def get_or_create_cart(db: AsyncSession, user_id: int):
+async def get_or_create_cart(db: AsyncSession, user_id: int, commit: bool = True):
     cart = await crud.get_cart_by_user_id(db, user_id)
     if not cart:
-        cart = await crud.create_cart(db, user_id)
+        cart = await crud.create_cart(db, user_id, commit=commit)
     return cart
 
 def _format_cart_response(cart):
@@ -73,7 +74,7 @@ async def get_user_cart(db: AsyncSession, user_id: int):
     cart_with_items = await crud.get_cart_by_user_id(db, user_id)
     return _format_cart_response(cart_with_items)
 
-async def add_item_to_cart(db: AsyncSession, user_id: int, item_in: schemas.CartItemCreate):
+async def add_item_to_cart(db: AsyncSession, user_id: int, item_in: schemas.CartItemCreate, commit: bool = True):
     # Verify Product
     product = await get_product_by_id(db, item_in.product_id)
     if not product:
@@ -82,21 +83,21 @@ async def add_item_to_cart(db: AsyncSession, user_id: int, item_in: schemas.Cart
     if product.product_status != "Active":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot add inactive or archived product to cart")
         
-    cart = await get_or_create_cart(db, user_id)
+    cart = await get_or_create_cart(db, user_id, commit=commit)
     
     # Check if item exists
-    existing_item = await crud.get_cart_item(db, cart.cart_id, item_in.product_id)
+    existing_item = await crud.get_cart_item(db, typing.cast(int, cart.cart_id), item_in.product_id)
     
     if existing_item:
         new_quantity = existing_item.quantity + item_in.quantity
         if new_quantity > product.product_stock:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Quantity exceeds available product stock")
         existing_item.quantity = new_quantity
-        await crud.update_cart_item(db, existing_item)
+        await crud.update_cart_item(db, existing_item, commit=commit)
     else:
         if item_in.quantity > product.product_stock:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Quantity exceeds available product stock")
-        await crud.add_cart_item(db, cart.cart_id, product.product_id, item_in.quantity, is_selected=True)
+        await crud.add_cart_item(db, typing.cast(int, cart.cart_id), product.product_id, item_in.quantity, is_selected=True, commit=commit)
         
     return await get_user_cart(db, user_id)
 
@@ -109,7 +110,9 @@ async def update_cart_item(db: AsyncSession, user_id: int, cart_item_id: int, it
     if not db_item or db_item.cart_id != cart.cart_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cart item not found")
         
-    product = await get_product_by_id(db, db_item.product_id)
+    product = await get_product_by_id(db, typing.cast(int, db_item.product_id))
+    if not product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
     
     if item_in.quantity is not None:
         if item_in.quantity > product.product_stock:
@@ -139,5 +142,5 @@ async def empty_cart(db: AsyncSession, user_id: int):
     if not cart:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cart not found")
         
-    await crud.empty_cart(db, cart.cart_id)
+    await crud.empty_cart(db, typing.cast(int, cart.cart_id))
     return None
