@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 import typing
 from redis.exceptions import RedisError
-
+from sqlalchemy.exc import SQLAlchemyError
 from app.core.redis import redis_client
 from app.features.orders import crud
 from app.features.orders.schemas import OrderCreateRequest
@@ -190,9 +190,9 @@ async def process_buy_again(db: AsyncSession, order_id: int, current_user: User)
     if added_items:
         try:
             await db.commit()
-        except Exception as e:
+        except SQLAlchemyError as e:
             await db.rollback()
-            raise HTTPException(status_code=500, detail="Database error occurred while processing Buy Again request.")
+            raise HTTPException(status_code=500, detail="Database error occurred while processing Buy Again request.") from e
 
     # Retrieve current cart total items
     cart_resp = await cart_services.get_user_cart(db, uid)

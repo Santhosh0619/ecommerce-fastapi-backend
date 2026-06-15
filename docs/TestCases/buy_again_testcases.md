@@ -83,7 +83,7 @@ This document outlines the test cases for the "Buy Again" feature. It covers pos
 **Expected Result**:
 - API returns `200 OK`.
 - `added_items` array is empty.
-- `unavailable_items` array contains "Product C" with reason: "Quantity exceeds available product stock."
+- `unavailable_items` array contains "Product C" with reason: "Insufficient stock."
 
 ---
 
